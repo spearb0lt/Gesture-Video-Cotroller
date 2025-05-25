@@ -1,0 +1,148 @@
+import cv2
+import mediapipe as mp
+import pyautogui
+import time
+
+# Configuration
+DEBUG = True
+MAX_NUM_HANDS = 2
+DETECTION_CONFIDENCE = 0.7
+HISTORY_LENGTH = 5
+GESTURE_COOLDOWN = 0.04
+KEY_HOLDING_GESTURES = ["2x"]
+
+# Initialize MediaPipe
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(max_num_hands=MAX_NUM_HANDS, min_detection_confidence=DETECTION_CONFIDENCE)
+mp_draw = mp.solutions.drawing_utils
+
+# Start webcam
+cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print("Could not open webcam.")
+    exit()
+
+# Gesture to key mapping
+GESTURE_ACTIONS = {
+    "back": "left",
+    "ahead": "right",
+    "volume_up": "volumeup",
+    "volume_down": "volumedown",
+    "fullscreen": "f",
+    "palm": "space",
+    "2x": "space",  # keyDown (hold)
+    "up": "up",
+    "down": "down"
+}
+
+# State for each hand
+gesture_history = [[], []]
+prev_gesture = [None, None]
+last_action_time = [0, 0]
+held_keys = set()
+
+def detect_gesture(landmarks):
+    tips_ids = [4, 8, 12, 16, 20]
+    fingers = []
+
+    fingers.append(1 if landmarks[tips_ids[0]].x < landmarks[tips_ids[0] - 1].x else 0)
+    for i in range(1, 5):
+        fingers.append(1 if landmarks[tips_ids[i]].y < landmarks[tips_ids[i] - 2].y else 0)
+
+    if fingers == [0, 1, 1, 0, 0]:
+        return "back"
+    elif fingers == [1, 1, 1, 1, 1]:
+        return "palm"
+    elif fingers == [0, 1, 0, 0, 0]:
+        return "ahead"
+    elif fingers == [0, 1, 1, 1, 0]:
+        return "volume_up"
+    elif fingers == [0, 1, 1, 1, 1]:
+        return "volume_down"
+    elif fingers == [1, 1, 1, 0, 0]:
+        return "fullscreen"
+    elif fingers == [0, 1, 0, 0, 1]:
+        return "2x"
+    elif fingers == [1, 0, 0, 0, 0]:
+        return "down"
+    elif fingers == [0, 0, 0, 0, 1]:
+        return "up"
+
+    return "unknown"
+
+def perform_action(gesture, hand_index):
+    key = GESTURE_ACTIONS.get(gesture)
+    if key:
+        if gesture in KEY_HOLDING_GESTURES:
+            if key not in held_keys:
+                pyautogui.keyDown(key)
+                held_keys.add(key)
+                print(f"[Hand {hand_index}] Holding: {gesture} → '{key}'")
+        else:
+            pyautogui.press(key)
+            print(f"[Hand {hand_index}] Performed: {gesture} → '{key}'")
+    else:
+        print(f"[Hand {hand_index}] No action mapped for gesture: {gesture}")
+
+print("Two-hand gesture control started. Press 'Q' to quit.")
+
+try:
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Frame not received. Exiting...")
+            break
+
+        frame = cv2.flip(frame, 1)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = hands.process(frame_rgb)
+
+        current_gestures = [None, None]
+
+        if results.multi_hand_landmarks:
+            for idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+                if idx >= MAX_NUM_HANDS:
+                    break
+
+                mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+                current_gestures[idx] = detect_gesture(hand_landmarks.landmark)
+
+                # Gesture history and action logic
+                if len(gesture_history[idx]) >= HISTORY_LENGTH:
+                    gesture_history[idx].pop(0)
+                gesture_history[idx].append(current_gestures[idx])
+
+                if gesture_history[idx].count(current_gestures[idx]) >= 4:
+                    if (current_gestures[idx] != prev_gesture[idx] and 
+                        (time.time() - last_action_time[idx]) > GESTURE_COOLDOWN):
+                        perform_action(current_gestures[idx], idx)
+                        prev_gesture[idx] = current_gestures[idx]
+                        last_action_time[idx] = time.time()
+
+        # Release held keys if their gestures have ended
+        for i in range(MAX_NUM_HANDS):
+            for gesture in KEY_HOLDING_GESTURES:
+                key = GESTURE_ACTIONS[gesture]
+                if (prev_gesture[i] == gesture and current_gestures[i] != gesture and key in held_keys):
+                    pyautogui.keyUp(key)
+                    held_keys.remove(key)
+                    print(f"[Hand {i}] Released: {gesture} → '{key}'")
+
+        # Display debug info
+        if DEBUG:
+            for i, gesture in enumerate(current_gestures):
+                if gesture:
+                    cv2.putText(frame, f'Hand {i}: {gesture}', (10, 50 + 40 * i),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        cv2.imshow("Gesture Controller - Two Hands", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+finally:
+    # Release any held keys on exit
+    for key in held_keys:
+        pyautogui.keyUp(key)
+    cap.release()
+    cv2.destroyAllWindows()
+    print("Exited Two-Hand Gesture Controller.")
