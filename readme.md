@@ -63,7 +63,7 @@ pip install opencv-python mediapipe pyautogui
 # For single-hand mode
 python YOUR-PATH/version1.py #or version2
  # For two-hand mode
-python gesture_controller_dual.py   
+python YOUR-PATH/2hands.py   
 ```
 
 ---
