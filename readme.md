@@ -12,10 +12,10 @@ Control your media, browser, or system actions using intuitive hand gestures thr
 | Gesture               | Action          | Description                          |
 |-----------------------|------------------|--------------------------------------|
 | ✋ Palm               | Play / Pause     | All five fingers extended            |
-| ✌️ Two Fingers (Index + Middle) | Volume Up      | Like a peace sign                    |
+| ✌️ Two Fingers (Index + Middle) | Back /Rewind      | Like a peace sign                    |
 | ☝️ Point (Index Only) | Skip Forward     | Only the index finger up             |
-| 🤘 Index + Pinky      | Volume Down      | Rock sign – index and pinky          |
-| ✊ Fist               | Back / Previous  | All fingers curled                   |
+| ✌️ + ✌️ Four fingers      | Volume Down      | Index, middle, ring, little up          |
+| ☝️ + ✌️Three fingers               | Volume Up  | Index, middle, ring up                   |
 | 👍 + ✌️ Full Hand (Thumb + Three) | Fullscreen       | Thumb, index, middle up              |
 | 👆 Thumb Only         | Scroll Down      | Only thumb extended                  |
 | 👉 Pinky Only         | Scroll Up        | Only pinky extended                  |
